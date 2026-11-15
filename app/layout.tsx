@@ -15,7 +15,7 @@ const outfit = Outfit({
 export const metadata: Metadata = {
   title: "Wooden Chord",
   description:
-    "Choose a full guitar neck, a focused chord neck, or the B minor blues lesson.",
+    "Choose a full guitar neck, a focused chord neck, or a blues song lesson.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

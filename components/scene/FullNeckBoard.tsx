@@ -9,6 +9,7 @@ import { BOARD_ROTATION, DOUBLE_INLAYS, SINGLE_INLAYS } from "@/lib/fretboard/la
 import {
   DEGREE_LABEL,
   ROLE_COLOR,
+  SCALE_TONE_COLOR,
   chordRole,
   noteName,
   scaleDegree,
@@ -245,7 +246,7 @@ function Neck({
                 note={noteName(pitch, spelling)}
                 degree={degree}
                 inRange={inRange}
-                color={role ? ROLE_COLOR[role] : inScale ? "#f4efe4" : null}
+                color={role ? ROLE_COLOR[role] : inScale ? SCALE_TONE_COLOR : null}
                 open={fret === 0}
                 grip={isGrip}
               />

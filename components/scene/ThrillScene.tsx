@@ -1,20 +1,14 @@
 "use client";
 
-import { RoundedBox, Text } from "@react-three/drei";
+import { OrbitControls, RoundedBox, Text } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
-import { Suspense, useLayoutEffect, useMemo, type ReactNode } from "react";
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode, type RefObject } from "react";
 import * as THREE from "three";
+import type { StageView } from "@/components/scene/FretboardScene";
 import { BOARD_ROTATION } from "@/lib/fretboard/layout";
-import {
-  BLUES_PITCHES,
-  BLUE_NOTE,
-  type Grip,
-  pitchClass,
-} from "@/lib/demo/thrill";
-import { noteName } from "@/lib/theory";
+import { LESSON_DOT, pitchClass, type Grip, type Partner } from "@/lib/demo/song";
+import { noteName, type Spelling } from "@/lib/theory";
 
-const WINDOW_START = 7;
-const WINDOW_END = 12;
 const PITCH = 0.48;
 const STRING_GAP = 0.4;
 const COUNT = 6;
@@ -26,21 +20,51 @@ const BOARD = "#6b4030";
 const GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789#♯♭ ·-–—";
 const LOOK = new THREE.Vector3(0, 0.5, 0.87).normalize();
 const STACK = new THREE.Vector3(0, 0.783, -0.622).normalize();
+const MIN_DISTANCE = 2.8;
+const MAX_DISTANCE = 46;
+
+type OrbitRig = {
+  target: THREE.Vector3;
+  update: () => void;
+};
 
 const SPAN = (COUNT - 1) * STRING_GAP;
 const WIDTH = SPAN + 0.4;
-const Z0 = WINDOW_START * PITCH - 0.2;
-const Z1 = (WINDOW_END + 1) * PITCH + 0.14;
-const Z_CENTER = (Z0 + Z1) / 2;
-const LENGTH = Z1 - Z0;
+/** Both lessons show six frets, so the boards keep one length. */
+const LENGTH = 6 * PITCH + 0.34;
+
+export type LessonLead = {
+  string: number;
+  fret: number;
+  sounding: number;
+  bend: number;
+  outside: boolean;
+  blue: boolean;
+  partner: Partner | null;
+};
 
 export type ThrillSceneProps = {
   chordName: string;
   chordFrets: Grip;
   chordTones: readonly number[];
-  lead: { string: number; fret: number; outside: boolean; blue: boolean } | null;
+  bluesPitches: readonly number[];
+  blueNote: number;
+  spelling: Spelling;
+  windowStart: number;
+  windowEnd: number;
+  leadKicker: string;
+  leadTitle: string;
+  leadSubtitle: string;
+  lead: LessonLead | null;
   strum: boolean;
+  viewRef: RefObject<StageView | null>;
 };
+
+function boardCenter(windowStart: number, windowEnd: number): number {
+  const z0 = windowStart * PITCH - 0.2;
+  const length = (windowEnd - windowStart + 1) * PITCH + 0.34;
+  return z0 + length / 2;
+}
 
 export function ThrillScene(props: ThrillSceneProps) {
   return (
@@ -61,8 +85,25 @@ export function ThrillScene(props: ThrillSceneProps) {
   );
 }
 
-function Lesson({ chordName, chordFrets, chordTones, lead, strum }: ThrillSceneProps) {
+function Lesson({
+  chordName,
+  chordFrets,
+  chordTones,
+  bluesPitches,
+  blueNote,
+  spelling,
+  windowStart,
+  windowEnd,
+  leadKicker,
+  leadTitle,
+  leadSubtitle,
+  lead,
+  strum,
+  viewRef,
+}: ThrillSceneProps) {
   const tones = useMemo(() => new Set(chordTones), [chordTones]);
+  const scale = useMemo(() => new Set(bluesPitches), [bluesPitches]);
+  const zCenter = boardCenter(windowStart, windowEnd);
   const rhythmAt = STACK.clone().multiplyScalar(1.75);
   const leadAt = STACK.clone().multiplyScalar(-1.75);
 
@@ -71,9 +112,32 @@ function Lesson({ chordName, chordFrets, chordTones, lead, strum }: ThrillSceneP
       <ambientLight intensity={0.46} />
       <directionalLight position={[4, 8, 6]} intensity={2.4} color="#fff0d4" />
       <directionalLight position={[-5, 3, -2]} intensity={0.45} color="#9eb4cc" />
-      <FitBoards />
+      <OrbitControls
+        makeDefault
+        enableRotate={false}
+        enablePan
+        zoomToCursor
+        screenSpacePanning
+        enableDamping
+        dampingFactor={0.12}
+        minDistance={MIN_DISTANCE}
+        maxDistance={MAX_DISTANCE}
+        mouseButtons={{
+          LEFT: THREE.MOUSE.PAN,
+          MIDDLE: THREE.MOUSE.DOLLY,
+          RIGHT: THREE.MOUSE.PAN,
+        }}
+        touches={{
+          ONE: THREE.TOUCH.PAN,
+          TWO: THREE.TOUCH.DOLLY_PAN,
+        }}
+      />
+      <FitBoards viewRef={viewRef} />
       <Neck
         position={rhythmAt}
+        zCenter={zCenter}
+        windowStart={windowStart}
+        windowEnd={windowEnd}
         kicker="Rhythm"
         title={chordName}
         subtitle="The chord of the bar"
@@ -84,8 +148,9 @@ function Lesson({ chordName, chordFrets, chordTones, lead, strum }: ThrillSceneP
               key={`${string}-${fret}`}
               string={string}
               fret={fret}
-              color="#e4b15c"
-              label={noteName(pitchClass(string, fret), "sharp")}
+              zCenter={zCenter}
+              color={LESSON_DOT.chord}
+              label={noteName(pitchClass(string, fret), spelling)}
               hot={strum}
               radius={0.13}
             />
@@ -94,11 +159,23 @@ function Lesson({ chordName, chordFrets, chordTones, lead, strum }: ThrillSceneP
       </Neck>
       <Neck
         position={leadAt}
-        kicker="B.B. King"
-        title="B minor blues"
-        subtitle="The scale, and the note sounding now"
+        zCenter={zCenter}
+        windowStart={windowStart}
+        windowEnd={windowEnd}
+        kicker={leadKicker}
+        title={leadTitle}
+        subtitle={leadSubtitle}
       >
-        <ScaleDots tones={tones} lead={lead} />
+        <ScaleDots
+          tones={tones}
+          scale={scale}
+          blueNote={blueNote}
+          spelling={spelling}
+          windowStart={windowStart}
+          windowEnd={windowEnd}
+          zCenter={zCenter}
+          lead={lead}
+        />
       </Neck>
     </>
   );
@@ -106,19 +183,26 @@ function Lesson({ chordName, chordFrets, chordTones, lead, strum }: ThrillSceneP
 
 function Neck({
   position,
+  zCenter,
+  windowStart,
+  windowEnd,
   kicker,
   title,
   subtitle,
   children,
 }: {
   position: THREE.Vector3;
+  zCenter: number;
+  windowStart: number;
+  windowEnd: number;
   kicker: string;
   title: string;
   subtitle: string;
   children: ReactNode;
 }) {
-  const localZ = (z: number) => z - Z_CENTER;
+  const localZ = (z: number) => z - zCenter;
   const stringX = (index: number) => -SPAN / 2 + index * STRING_GAP;
+  const frets = Array.from({ length: windowEnd - windowStart + 1 }, (_, index) => windowStart + index);
 
   return (
     <group position={position} rotation={BOARD_ROTATION}>
@@ -138,30 +222,26 @@ function Neck({
       >
         <meshStandardMaterial color={BOARD} roughness={0.64} metalness={0.02} />
       </RoundedBox>
-      <mesh position={[0, -NECK_THICKNESS / 2 + 0.004, localZ(Z0 + 0.02)]}>
+      <mesh position={[0, -NECK_THICKNESS / 2 + 0.004, localZ(windowStart * PITCH - 0.18)]}>
         <boxGeometry args={[WIDTH + 0.004, NECK_THICKNESS, 0.02]} />
         <meshStandardMaterial color="#c6a15c" metalness={0.55} roughness={0.35} />
       </mesh>
-      {Array.from({ length: WINDOW_END - WINDOW_START + 1 }, (_, index) => WINDOW_START + index).map(
-        (fret) => (
-          <FretWire key={fret} z={localZ(fret * PITCH)} />
-        ),
-      )}
+      {frets.map((fret) => (
+        <FretWire key={fret} z={localZ(fret * PITCH)} />
+      ))}
       {Array.from({ length: COUNT }, (_, index) => (
         <StringCourse key={index} index={index} x={stringX(index)} />
       ))}
-      {Array.from({ length: WINDOW_END - WINDOW_START + 1 }, (_, index) => WINDOW_START + index).map(
-        (fret) => (
-          <FaceText
-            key={`n-${fret}`}
-            position={[-WIDTH / 2 - 0.08, LABEL_Y, localZ((fret + 0.5) * PITCH)]}
-            size={0.11}
-            color="#f6e7c3"
-          >
-            {String(fret)}
-          </FaceText>
-        ),
-      )}
+      {frets.map((fret) => (
+        <FaceText
+          key={`n-${fret}`}
+          position={[-WIDTH / 2 - 0.08, LABEL_Y, localZ((fret + 0.5) * PITCH)]}
+          size={0.11}
+          color="#f6e7c3"
+        >
+          {String(fret)}
+        </FaceText>
+      ))}
       <FaceText position={[WIDTH / 2 + 0.46, LABEL_Y, 0]} size={0.13} color="#e4b15c">
         {kicker}
       </FaceText>
@@ -180,49 +260,75 @@ function Neck({
 
 function ScaleDots({
   tones,
+  scale,
+  blueNote,
+  spelling,
+  windowStart,
+  windowEnd,
+  zCenter,
   lead,
 }: {
   tones: Set<number>;
-  lead: ThrillSceneProps["lead"];
+  scale: Set<number>;
+  blueNote: number;
+  spelling: Spelling;
+  windowStart: number;
+  windowEnd: number;
+  zCenter: number;
+  lead: LessonLead | null;
 }) {
   const dots: Array<{ string: number; fret: number; pitch: number }> = [];
   for (let string = 0; string < COUNT; string += 1) {
-    for (let fret = WINDOW_START; fret <= WINDOW_END; fret += 1) {
+    for (let fret = windowStart; fret <= windowEnd; fret += 1) {
       const pitch = pitchClass(string, fret);
-      if (BLUES_PITCHES.has(pitch)) dots.push({ string, fret, pitch });
+      if (scale.has(pitch)) dots.push({ string, fret, pitch });
     }
   }
-  const sounding =
-    lead &&
-    dots.find((dot) => dot.string === lead.string && dot.fret === lead.fret) === undefined
-      ? lead
-      : null;
+  const fingerOnScale =
+    lead !== null && dots.some((dot) => dot.string === lead.string && dot.fret === lead.fret);
+  const partnerOnScale =
+    lead?.partner != null &&
+    dots.some((dot) => dot.string === lead.partner?.string && dot.fret === lead.partner?.fret);
 
   return (
     <>
       {dots.map((dot) => {
-        const active = lead?.string === dot.string && lead.fret === dot.fret;
-        const chordTone = tones.has(dot.pitch);
-        const blue = dot.pitch === BLUE_NOTE;
-        const color = active && lead?.outside ? "#e07a45" : chordTone ? "#e4b15c" : blue ? "#9ec4d8" : "#f4efe4";
+        const finger = lead?.string === dot.string && lead.fret === dot.fret;
+        const partner = lead?.partner?.string === dot.string && lead.partner.fret === dot.fret;
+        const hot = finger || partner;
+        const pitch = finger && lead ? lead.sounding : dot.pitch;
+        const color = markerColor(pitch, tones, blueNote, finger ? lead.outside : false);
         return (
           <Marker
             key={`${dot.string}-${dot.fret}`}
             string={dot.string}
             fret={dot.fret}
+            zCenter={zCenter}
             color={color}
-            label={noteName(dot.pitch, "sharp")}
-            hot={active}
-            radius={active ? 0.145 : 0.1}
+            label={noteName(pitch, spelling)}
+            hot={hot}
+            radius={hot ? 0.145 : 0.1}
           />
         );
       })}
-      {sounding ? (
+      {lead && !fingerOnScale ? (
         <Marker
-          string={sounding.string}
-          fret={sounding.fret}
-          color="#e07a45"
-          label={noteName(pitchClass(sounding.string, sounding.fret), "sharp")}
+          string={lead.string}
+          fret={lead.fret}
+          zCenter={zCenter}
+          color={markerColor(lead.sounding, tones, blueNote, lead.outside)}
+          label={noteName(lead.sounding, spelling)}
+          hot
+          radius={0.145}
+        />
+      ) : null}
+      {lead?.partner && !partnerOnScale ? (
+        <Marker
+          string={lead.partner.string}
+          fret={lead.partner.fret}
+          zCenter={zCenter}
+          color={markerColor(pitchClass(lead.partner.string, lead.partner.fret), tones, blueNote, false)}
+          label={noteName(pitchClass(lead.partner.string, lead.partner.fret), spelling)}
           hot
           radius={0.145}
         />
@@ -231,9 +337,17 @@ function ScaleDots({
   );
 }
 
+function markerColor(pitch: number, tones: Set<number>, blueNote: number, outside: boolean): string {
+  if (outside) return LESSON_DOT.outside;
+  if (tones.has(pitch)) return LESSON_DOT.chord;
+  if (pitch === blueNote) return LESSON_DOT.blue;
+  return LESSON_DOT.scale;
+}
+
 function Marker({
   string,
   fret,
+  zCenter,
   color,
   label,
   hot,
@@ -241,24 +355,23 @@ function Marker({
 }: {
   string: number;
   fret: number;
+  zCenter: number;
   color: string;
   label: string;
   hot: boolean;
   radius: number;
 }) {
   const x = -SPAN / 2 + string * STRING_GAP;
-  const z = (fret + 0.5) * PITCH - Z_CENTER;
+  const z = (fret + 0.5) * PITCH - zCenter;
   return (
     <group position={[x, 0, z]}>
+      <mesh position={[0, TOP + 0.078, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[radius + 0.03, 24]} />
+        <meshBasicMaterial color="#120c09" />
+      </mesh>
       <mesh position={[0, TOP + 0.09, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[radius, 24]} />
-        <meshStandardMaterial
-          color={color}
-          emissive={color}
-          emissiveIntensity={hot ? 0.7 : 0.28}
-          metalness={0.18}
-          roughness={0.36}
-        />
+        <meshBasicMaterial color={color} />
       </mesh>
       {hot ? (
         <mesh position={[0, TOP + 0.11, 0]} rotation={[Math.PI / 2, 0, 0]}>
@@ -333,9 +446,13 @@ function FaceText({
   );
 }
 
-function FitBoards() {
+function FitBoards({ viewRef }: { viewRef: RefObject<StageView | null> }) {
   const camera = useThree((state) => state.camera) as THREE.PerspectiveCamera;
+  const controls = useThree((state) => state.controls) as OrbitRig | null;
+  const gl = useThree((state) => state.gl);
   const size = useThree((state) => state.size);
+  const home = useRef<{ position: THREE.Vector3; target: THREE.Vector3 } | null>(null);
+  const cursor = useRef<THREE.Vector2 | null>(null);
 
   useLayoutEffect(() => {
     const rotation = new THREE.Matrix4().makeRotationFromEuler(
@@ -376,7 +493,90 @@ function FitBoards() {
     }
     camera.position.copy(target).addScaledVector(LOOK, distance);
     camera.lookAt(target);
-  }, [camera, size.height, size.width]);
+    camera.updateMatrixWorld();
+    if (controls) {
+      controls.target.copy(target);
+      controls.update();
+    }
+    home.current = { position: camera.position.clone(), target: target.clone() };
+  }, [camera, controls, size.height, size.width]);
+
+  useEffect(() => {
+    const dom = gl.domElement;
+    const onMove = (event: PointerEvent) => {
+      const rect = dom.getBoundingClientRect();
+      cursor.current = new THREE.Vector2(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        -((event.clientY - rect.top) / rect.height) * 2 + 1,
+      );
+    };
+    const onDown = () => {
+      dom.style.cursor = "grabbing";
+    };
+    const onUp = () => {
+      if (dom.style.cursor === "grabbing") dom.style.cursor = "grab";
+    };
+    dom.style.cursor = "grab";
+    dom.addEventListener("pointermove", onMove);
+    dom.addEventListener("pointerdown", onDown);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      dom.style.cursor = "";
+      dom.removeEventListener("pointermove", onMove);
+      dom.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, [gl]);
+
+  useEffect(() => {
+    const orbit = controls;
+    if (!orbit) return;
+    viewRef.current = {
+      pan(x, y) {
+        const distance = camera.position.distanceTo(orbit.target);
+        const scale = distance / 8;
+        const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
+        const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
+        const shift = right.multiplyScalar(x * scale).add(up.multiplyScalar(y * scale));
+        camera.position.add(shift);
+        orbit.target.add(shift);
+        orbit.update();
+      },
+      tilt() {},
+      zoom(scale) {
+        const offset = camera.position.clone().sub(orbit.target);
+        const previous = offset.length();
+        const next = THREE.MathUtils.clamp(previous * scale, MIN_DISTANCE, MAX_DISTANCE);
+        const aim = cursor.current;
+        if (!aim || next === previous) {
+          offset.setLength(next);
+          camera.position.copy(orbit.target).add(offset);
+          orbit.update();
+          return;
+        }
+        camera.updateMatrixWorld();
+        const direction = new THREE.Vector3(aim.x, aim.y, 1).unproject(camera).sub(camera.position).normalize();
+        camera.position.addScaledVector(direction, previous - next);
+        camera.updateMatrixWorld();
+        orbit.target
+          .set(0, 0, -1)
+          .transformDirection(camera.matrix)
+          .multiplyScalar(next)
+          .add(camera.position);
+        orbit.update();
+      },
+      reset() {
+        const saved = home.current;
+        if (!saved) return;
+        camera.position.copy(saved.position);
+        orbit.target.copy(saved.target);
+        orbit.update();
+      },
+    };
+    return () => {
+      viewRef.current = null;
+    };
+  }, [camera, controls, viewRef]);
 
   return null;
 }

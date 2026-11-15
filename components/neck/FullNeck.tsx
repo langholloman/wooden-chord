@@ -139,7 +139,7 @@ export function FullNeck() {
               Full neck
             </a>
             <a href="/focus">Focused neck</a>
-            <a href="/thrill">Thrill</a>
+            <a href="/thrill">Songs</a>
           </nav>
         </header>
 

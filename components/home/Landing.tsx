@@ -7,8 +7,8 @@ export function Landing() {
         <p className="eyebrow">Standard guitar · E A D G B E</p>
         <h1 className="wordmark">Wooden Chord</h1>
         <p className="lede landing-lede">
-          Three ways to look at the neck. The whole fretboard, the chord up close, or a lesson
-          that plays the changes and the scale together.
+          Three ways to look at the neck. The whole fretboard, the chord up close, or a song
+          lesson that sets the changes beside the scale.
         </p>
         <div className="landing-choices">
           <Link href="/neck" className="landing-card">
@@ -28,11 +28,11 @@ export function Landing() {
             </p>
           </Link>
           <Link href="/thrill" className="landing-card">
-            <em>B.B. King · lesson</em>
-            <strong>The Thrill Is Gone</strong>
+            <em>Song lesson</em>
+            <strong>The songs</strong>
             <p>
-              Two necks, one chorus. The rhythm neck moves through the B minor changes. The lead
-              neck keeps the blues scale and shows each note as it sounds.
+              The Thrill Is Gone in B minor, and Born Under a Bad Sign in C♯. The rhythm neck
+              takes the changes. The lead neck keeps the blues scale.
             </p>
           </Link>
         </div>

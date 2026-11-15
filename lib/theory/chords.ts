@@ -9,11 +9,14 @@ export const CHORD_INTERVALS: Record<ChordQuality, readonly number[]> = {
   minor: [0, 3, 7],
 };
 
+/** Same roles as before: gold root, orange 3rd, warm 5th. Lifted so they separate on the panel and the wood. */
 export const ROLE_COLOR: Record<ChordRole, string> = {
-  R: "#e4b15c",
-  "3": "#e07a45",
-  "5": "#d7d0c2",
+  R: "#ffc53d",
+  "3": "#ff6a32",
+  "5": "#f3ecdf",
 };
+
+export const SCALE_TONE_COLOR = "#ffffff";
 
 export const ROLE_NAME: Record<ChordRole, string> = {
   R: "Root",

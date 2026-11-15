@@ -21,6 +21,7 @@ import {
 import {
   DEGREE_LABEL,
   ROLE_COLOR,
+  SCALE_TONE_COLOR,
   noteName,
   scaleDegree,
   scaleMarkers,
@@ -354,26 +355,18 @@ function ChordPeg({
     <group position={[x, 0, z]}>
       {fret === 0 ? (
         <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, TOP + 0.086, 0]}>
-          <torusGeometry args={[0.068, 0.016, 14, 36]} />
-          <meshStandardMaterial
-            color={color}
-            emissive={color}
-            emissiveIntensity={hot ? 0.9 : dim ? 0.08 : 0.4}
-            metalness={0.4}
-            roughness={0.32}
-          />
+          <torusGeometry args={[0.068, 0.02, 14, 36]} />
+          <meshBasicMaterial color={color} transparent={dim} opacity={dim ? 0.35 : 1} />
         </mesh>
       ) : (
         <group>
+          <mesh position={[0, TOP + 0.084, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <circleGeometry args={[0.09, 32]} />
+            <meshBasicMaterial color="#120c09" />
+          </mesh>
           <mesh position={[0, TOP + 0.092, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <circleGeometry args={[0.068, 32]} />
-            <meshStandardMaterial
-              color={color}
-              emissive={color}
-              emissiveIntensity={hot ? 0.85 : dim ? 0.05 : 0.4}
-              metalness={0.22}
-              roughness={0.35}
-            />
+            <circleGeometry args={[0.072, 32]} />
+            <meshBasicMaterial color={color} transparent={dim} opacity={dim ? 0.35 : 1} />
           </mesh>
           <mesh position={[0, TOP + 0.062, 0]}>
             <cylinderGeometry args={[0.06, 0.06, 0.05, 20]} />
@@ -462,12 +455,16 @@ function ScaleDot({
   showLabel: boolean;
   stagger: number;
 }) {
-  const color = root ? "#e4b15c" : "#fff8ec";
+  const color = root ? ROLE_COLOR.R : SCALE_TONE_COLOR;
   return (
     <group position={[x, 0, z]}>
-      <mesh position={[0, TOP + 0.084, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[0.04, 28]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={root ? 0.55 : 0.28} roughness={0.28} />
+      <mesh position={[0, TOP + 0.078, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[0.062, 28]} />
+        <meshBasicMaterial color="#120c09" />
+      </mesh>
+      <mesh position={[0, TOP + 0.086, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[0.048, 28]} />
+        <meshBasicMaterial color={color} />
       </mesh>
       {showLabel ? (
         <FaceText position={[0, LABEL_Y, stagger]} size={0.11} color={color} inlay>

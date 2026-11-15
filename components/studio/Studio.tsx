@@ -9,6 +9,7 @@ import {
   GUITAR_STANDARD,
   ROLE_COLOR,
   ROLE_NAME,
+  SCALE_TONE_COLOR,
   SCALES,
   chordName,
   fretPlace,
@@ -132,7 +133,7 @@ export function Studio() {
             <a href="/focus" aria-current="page">
               Focused neck
             </a>
-            <a href="/thrill">Thrill</a>
+            <a href="/thrill">Songs</a>
           </nav>
         </header>
 
@@ -276,12 +277,13 @@ export function Studio() {
                   <button
                     type="button"
                     className={hot ? "breakout is-hot" : "breakout"}
+                    style={{ ["--dot" as string]: ROLE_COLOR[center.roles[index]] }}
                     onMouseEnter={() => setHovered(index)}
                     onMouseLeave={() => setHovered(null)}
                     onFocus={() => setHovered(index)}
                     onBlur={() => setHovered(null)}
                   >
-                    <span className="swatch" style={{ background: ROLE_COLOR[center.roles[index]] }} />
+                    <RoleDot color={ROLE_COLOR[center.roles[index]]} />
                     <span className="breakout-copy">
                       <strong>
                         {stringName(index, GUITAR_STANDARD.openPitchClasses.length)} ·{" "}
@@ -296,15 +298,15 @@ export function Studio() {
           </ol>
         </section>
 
-        <ul className="legend">
+        <ul className="legend role-legend">
           {(["R", "3", "5"] as const).map((role) => (
             <li key={role}>
-              <span className="swatch" style={{ background: ROLE_COLOR[role] }} />
+              <RoleDot color={ROLE_COLOR[role]} />
               {ROLE_NAME[role]}
             </li>
           ))}
           <li>
-            <span className="swatch swatch-pearl" />
+            <RoleDot color={SCALE_TONE_COLOR} />
             Scale tone
           </li>
         </ul>
@@ -333,13 +335,7 @@ export function Studio() {
           <ul>
             {(["R", "3", "5"] as const).map((role) => (
               <li key={role}>
-                <span
-                  className="swatch swatch-glow"
-                  style={{
-                    background: ROLE_COLOR[role],
-                    boxShadow: `0 0 8px ${ROLE_COLOR[role]}`,
-                  }}
-                />
+                <RoleDot color={ROLE_COLOR[role]} />
                 {ROLE_NAME[role]}
               </li>
             ))}
@@ -353,5 +349,14 @@ export function Studio() {
         <StageTools viewRef={viewRef} />
       </main>
     </div>
+  );
+}
+
+function RoleDot({ color }: { color: string }) {
+  return (
+    <span
+      className="swatch"
+      style={{ background: color, ["--dot" as string]: color }}
+    />
   );
 }

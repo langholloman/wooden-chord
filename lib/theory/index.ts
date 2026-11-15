@@ -10,6 +10,7 @@ export {
   CHORD_INTERVALS,
   ROLE_COLOR,
   ROLE_NAME,
+  SCALE_TONE_COLOR,
   chordName,
   chordPitchClasses,
   chordRole,
